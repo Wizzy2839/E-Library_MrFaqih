@@ -26,6 +26,8 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
+        // Mengisi model user dengan data yang sudah divalidasi
+        // (Otomatis handle nama_lengkap & username dari Request)
         $request->user()->fill($request->validated());
 
         if ($request->user()->isDirty('email')) {

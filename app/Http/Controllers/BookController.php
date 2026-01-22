@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Models\Category; // Import Model Category
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -10,13 +11,18 @@ class BookController extends Controller
 {
     public function index()
     {
-        $books = Book::latest()->paginate(10);
+        // Eager load category agar query lebih efisien
+        $books = Book::with('category')->latest()->paginate(10);
+        
         return view('books.index', compact('books'));
     }
 
     public function create()
     {
-        return view('books.create');
+        // Ambil data kategori untuk dropdown di form create
+        $categories = Category::all();
+        
+        return view('books.create', compact('categories'));
     }
 
     public function store(Request $request)
@@ -27,8 +33,8 @@ class BookController extends Controller
             'publisher' => 'required',
             'publication_year' => 'required|numeric',
             'stock' => 'required|numeric',
-            // UPDATE: Tambahkan 'avif' disini
-            'cover' => 'nullable|image|mimes:jpeg,png,jpg,webp,avif|max:2048', 
+            'category_id' => 'required|exists:categories,id',
+            'cover' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif|max:2048', 
         ]);
 
         if ($request->hasFile('cover')) {
@@ -43,7 +49,10 @@ class BookController extends Controller
 
     public function edit(Book $book)
     {
-        return view('books.edit', compact('book'));
+        // Ambil data kategori untuk dropdown di form edit
+        $categories = Category::all();
+
+        return view('books.edit', compact('book', 'categories'));
     }
 
     public function update(Request $request, Book $book)
@@ -54,14 +63,16 @@ class BookController extends Controller
             'publisher' => 'required',
             'publication_year' => 'required|numeric',
             'stock' => 'required|numeric',
-            // UPDATE: Tambahkan 'avif' disini juga
+            'category_id' => 'required|exists:categories,id',
             'cover' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif|max:2048',
         ]);
 
         if ($request->hasFile('cover')) {
+            // Hapus cover lama jika ada
             if ($book->cover) {
                 Storage::disk('public')->delete($book->cover);
             }
+            // Upload cover baru
             $path = $request->file('cover')->store('covers', 'public');
             $validated['cover'] = $path;
         }
@@ -76,7 +87,9 @@ class BookController extends Controller
         if ($book->cover) {
             Storage::disk('public')->delete($book->cover);
         }
+        
         $book->delete();
+        
         return redirect()->route('books.index')->with('success', 'Buku dihapus');
     }
 }

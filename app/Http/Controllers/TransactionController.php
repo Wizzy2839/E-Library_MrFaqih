@@ -7,6 +7,7 @@ use App\Models\Book;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Notifications\BookActionNotification; // Import Notifikasi
 
 class TransactionController extends Controller
 {
@@ -58,7 +59,11 @@ class TransactionController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Buku berhasil dipinjam!');
+        // 4. Kirim Notifikasi ke Siswa (Bahwa dia berhasil meminjam)
+        $user = auth()->user();
+        $user->notify(new BookActionNotification($book, 'borrowed'));
+
+        return back()->with('success', 'Buku berhasil dipinjam! Cek notifikasi Anda.');
     }
 
     // Proses Kembalikan Buku (Return)
@@ -83,6 +88,10 @@ class TransactionController extends Controller
             $loan->book->increment('stock');
         });
 
-        return back()->with('success', 'Buku berhasil dikembalikan & stok diperbarui.');
+        // Kirim Notifikasi ke Siswa (Bahwa bukunya sudah diterima admin)
+        // Kita kirim ke $loan->user (Peminjam), bukan auth()->user() (Admin)
+        $loan->user->notify(new BookActionNotification($loan->book, 'returned'));
+
+        return back()->with('success', 'Buku berhasil dikembalikan & notifikasi dikirim ke siswa.');
     }
 }
